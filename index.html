@@ -735,6 +735,7 @@ function renderPickArea(m, myPick) {
 }
 
 async function selectPick(team, matchId) {
+  if (!zelleGate()) return;
   pendingPickTeam = team;
   // Optimistic update
   const m = allMatches.find(x => x.id === matchId);
@@ -1748,7 +1749,18 @@ function isMatchLocked(m) {
   return false;
 }
 
+function zelleGate() {
+  const me = allUsers.find(u => u.id === currentUser.id);
+  if (!me?.zelle_id) {
+    toast('⚠ Add your Zelle ID under More before picking');
+    setTimeout(() => showPage('settings', document.getElementById('nav-settings')), 800);
+    return false;
+  }
+  return true;
+}
+
 async function inlinePick(team, matchId) {
+  if (!zelleGate()) return;
   const m = allMatches.find(x => x.id === matchId);
   if (!isAdmin && m && isMatchLocked(m)) {
     toast('⚠ Picks are locked for this match');
