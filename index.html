@@ -1629,12 +1629,59 @@ function renderAdminCards() {
 }
 
 function quickEditResult(matchId) {
-  showPage('settings', document.getElementById('nav-settings'));
-  setTimeout(() => {
-    const sel = document.getElementById('admin-match-sel');
-    if (sel) { sel.value = matchId; onAdminMatchChange(); }
-    document.getElementById('admin-result-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 120);
+  const card   = document.getElementById('match-card-' + matchId);
+  const badge  = card?.querySelector('.match-result-badge');
+  if (!badge) return;
+
+  const m       = allMatches.find(x => x.id === matchId);
+  const result  = allResults.find(r => r.match_id === matchId);
+  const isGroup = m?.stage === 'Group';
+  const stake   = result?.stake || STAKE_BY_STAGE[m?.stage] || 10;
+
+  badge.outerHTML = `<div id="inline-edit-${matchId}" style="background:var(--surface2);border:1px solid var(--gold-border);border-radius:var(--rs);padding:12px;display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--gold)">Edit Result</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="ier-winner-${matchId}" style="flex:1;min-width:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 10px">
+        <option value="${m?.team1}" ${result?.winner===m?.team1?'selected':''}>${m?.team1}</option>
+        <option value="${m?.team2}" ${result?.winner===m?.team2?'selected':''}>${m?.team2}</option>
+        ${isGroup ? `<option value="draw" ${result?.winner==='draw'?'selected':''}>🤝 Draw</option>` : ''}
+        <option value="NR" ${result?.winner==='NR'?'selected':''}>🌧 No Result</option>
+      </select>
+      <input type="number" id="ier-stake-${matchId}" value="${stake}" min="1" style="width:70px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 10px">
+    </div>
+    <div style="display:flex;gap:6px">
+      <button onclick="saveInlineResult(${matchId})" style="flex:1;padding:8px;border-radius:var(--rs);border:1px solid rgba(62,207,142,.3);background:rgba(62,207,142,.08);color:var(--green);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Update</button>
+      <button onclick="removeInlineResult(${matchId})" style="flex:1;padding:8px;border-radius:var(--rs);border:1px solid rgba(245,101,101,.3);background:rgba(245,101,101,.08);color:var(--red);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Remove</button>
+      <button onclick="renderMatchDay(currentDayIdx)" style="padding:8px 12px;border-radius:var(--rs);border:1px solid var(--border2);background:none;color:var(--text3);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer">Cancel</button>
+    </div>
+  </div>`;
+}
+
+async function saveInlineResult(matchId) {
+  const winner = document.getElementById('ier-winner-' + matchId)?.value;
+  const stake  = parseFloat(document.getElementById('ier-stake-' + matchId)?.value) || 10;
+  if (!winner) { toast('⚠ Select a winner'); return; }
+  setSyncStatus('syncing', 'Saving…');
+  const { error } = await db.from('results').upsert({ match_id: matchId, winner, stake, posted_at: new Date().toISOString() }, { onConflict: 'match_id' });
+  if (error) { toast('⚠ Failed to save'); setSyncStatus('err','Failed'); return; }
+  const idx = allResults.findIndex(r => r.match_id === matchId);
+  if (idx >= 0) { allResults[idx].winner = winner; allResults[idx].stake = stake; }
+  else allResults.push({ match_id: matchId, winner, stake });
+  setSyncStatus('ok', 'Saved ✓');
+  toast('✓ Result updated');
+  renderMatchDay(currentDayIdx);
+}
+
+async function removeInlineResult(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  if (!confirm(`Remove result for #${m?.match_number} ${m?.team1} vs ${m?.team2}?`)) return;
+  setSyncStatus('syncing', 'Removing…');
+  const { error } = await db.from('results').delete().eq('match_id', matchId);
+  if (error) { toast('⚠ Failed'); setSyncStatus('err','Failed'); return; }
+  allResults = allResults.filter(r => r.match_id !== matchId);
+  setSyncStatus('ok', 'Removed ✓');
+  toast('✓ Result removed');
+  renderMatchDay(currentDayIdx);
 }
 
 function buildOverrideSelects() {
