@@ -357,6 +357,29 @@ input[readonly]{opacity:.6;cursor:default;}
       <button class="btn btn-green" style="margin-top:14px" onclick="postResult()">POST RESULT →</button>
     </div>
 
+    <!-- Admin: Send Reminder -->
+    <div class="card" id="admin-reminder-card" style="display:none">
+      <div class="card-title">📧 Send Reminder</div>
+      <div class="field">
+        <label>Stage</label>
+        <select id="reminder-stage" onchange="renderReminderPreview()">
+          <option value="Group">Group Stage</option>
+          <option value="R32" selected>Round of 32</option>
+          <option value="R16">Round of 16</option>
+          <option value="QF">Quarter-finals</option>
+          <option value="SF">Semi-finals</option>
+          <option value="3rd">3rd Place</option>
+          <option value="Final">Final</option>
+        </select>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Custom message (optional)</label>
+        <input type="text" id="reminder-msg" placeholder="Picks close before the first match!">
+      </div>
+      <div id="reminder-preview" style="margin-top:12px"></div>
+      <button class="btn btn-blue" style="margin-top:14px" onclick="sendReminders()">SEND REMINDER →</button>
+    </div>
+
     <!-- Admin: Reset test data -->
     <div class="card" id="admin-reset-card" style="display:none;border-color:rgba(245,101,101,.25)">
       <div class="card-title" style="color:var(--red)">⚠ Reset Test Data</div>
@@ -419,13 +442,17 @@ input[readonly]{opacity:.6;cursor:default;}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  CONFIG — fill these in once
 // ══════════════════════════════════════════════════════════════
-const GOOGLE_CLIENT_ID  = '';  // Google Cloud Console → OAuth 2.0 Client ID
-const SUPABASE_URL      = '';  // Supabase project URL
-const SUPABASE_ANON_KEY = '';  // Supabase anon/public key
+const GOOGLE_CLIENT_ID   = '';  // Google Cloud Console → OAuth 2.0 Client ID
+const SUPABASE_URL       = '';  // Supabase project URL
+const SUPABASE_ANON_KEY  = '';  // Supabase anon/public key
+const EMAILJS_SERVICE_ID  = '';  // EmailJS → Email Services → Service ID
+const EMAILJS_TEMPLATE_ID = '';  // EmailJS → Email Templates → Template ID
+const EMAILJS_PUBLIC_KEY  = '';  // EmailJS → Account → General → Public Key
 const ADMIN_EMAILS      = ['adhikariabhinav07@gmail.com'];
 const STAKE_BY_STAGE    = {
   'Group':10, 'R32':15, 'R16':20, 'QF':30, 'SF':50, '3rd':30, 'Final':100
@@ -1379,11 +1406,13 @@ function renderSettings() {
   if (isAdmin) {
     renderAllowlist();
     buildAdminMatchSelect();
+    renderReminderPreview();
   }
 }
 
 function renderAdminCards() {
   document.getElementById('admin-result-card').style.display    = isAdmin ? 'block' : 'none';
+  document.getElementById('admin-reminder-card').style.display  = isAdmin ? 'block' : 'none';
   document.getElementById('admin-match-card').style.display     = isAdmin ? 'block' : 'none';
   document.getElementById('admin-allowlist-card').style.display = isAdmin ? 'block' : 'none';
   document.getElementById('admin-reset-card').style.display     = isAdmin ? 'block' : 'none';
@@ -1538,6 +1567,82 @@ function renderAllowlist() {
       </div>
       <button class="btn btn-sm btn-danger" onclick="removeFromAllowlist('${a.email}')">Remove</button>
     </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  REMINDERS
+// ══════════════════════════════════════════════════════════════
+const STAGE_LABELS = {Group:'Group Stage',R32:'Round of 32',R16:'Round of 16',QF:'Quarter-finals',SF:'Semi-finals','3rd':'3rd Place',Final:'Final'};
+
+function renderReminderPreview() {
+  const el = document.getElementById('reminder-preview');
+  if (!el) return;
+  const stage = document.getElementById('reminder-stage')?.value;
+  if (!stage) return;
+
+  const participants  = getParticipants().filter(u => u.email);
+  const stageMatches  = allMatches.filter(m => m.stage === stage);
+  if (!stageMatches.length) {
+    el.innerHTML = `<div class="note">No ${STAGE_LABELS[stage]} matches found yet.</div>`;
+    return;
+  }
+
+  const rows = participants.map((u, i) => {
+    const picked   = stageMatches.filter(m => allPicks.some(p => p.user_id === u.id && p.match_id === m.id && p.team_pick)).length;
+    const unpicked = stageMatches.length - picked;
+    const color    = AVATAR_COLORS[i % AVATAR_COLORS.length];
+    const cls      = unpicked === 0 ? 'positive' : unpicked === stageMatches.length ? 'negative' : '';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="color:var(--text)">${u.name}</span>
+      <span class="${cls}" style="font-family:'DM Mono',monospace;font-weight:600">${picked}/${stageMatches.length} picked</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:6px">${participants.length} players · ${stageMatches.length} matches</div>${rows}`;
+}
+
+async function sendReminders() {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    toast('⚠ EmailJS not configured — add keys to Netlify env vars');
+    return;
+  }
+  const stage      = document.getElementById('reminder-stage').value;
+  const customMsg  = document.getElementById('reminder-msg').value.trim();
+  const participants = getParticipants().filter(u => u.email);
+  if (!participants.length) { toast('No players with emails'); return; }
+
+  const stageMatches = allMatches.filter(m => m.stage === stage);
+  const appUrl = window.location.origin + window.location.pathname;
+
+  if (!confirm(`Send reminder to ${participants.length} player${participants.length!==1?'s':''}?`)) return;
+
+  setSyncStatus('syncing', `Sending…`);
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+
+  let sent = 0, failed = 0;
+  for (const u of participants) {
+    const picked   = stageMatches.filter(m => allPicks.some(p => p.user_id === u.id && p.match_id === m.id && p.team_pick)).length;
+    const unpicked = stageMatches.length - picked;
+    try {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_name:   u.name,
+        to_email:  u.email,
+        stage:     STAGE_LABELS[stage] || stage,
+        picked,
+        total:     stageMatches.length,
+        unpicked,
+        message:   customMsg || `${STAGE_LABELS[stage]} picks are open — lock them in before the first match!`,
+        app_url:   appUrl
+      });
+      sent++;
+    } catch(e) {
+      console.error('Email failed for', u.email, e);
+      failed++;
+    }
+  }
+
+  setSyncStatus('ok', 'Done ✓');
+  toast(`✓ ${sent} reminder${sent!==1?'s':''} sent${failed ? ' · '+failed+' failed' : ''}`);
 }
 
 // ══════════════════════════════════════════════════════════════
