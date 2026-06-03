@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject credentials from secrets
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          sed -i "s|const GOOGLE_CLIENT_ID  = '[^']*'|const GOOGLE_CLIENT_ID  = '${GOOGLE_CLIENT_ID}'|" index.html
+          sed -i "s|const SUPABASE_URL      = '[^']*'|const SUPABASE_URL      = '${SUPABASE_URL}'|" index.html
+          sed -i "s|const SUPABASE_ANON_KEY = '[^']*'|const SUPABASE_ANON_KEY = '${SUPABASE_ANON_KEY}'|" index.html
+
+      - name: Prepare deploy directory
+        run: |
+          mkdir _site
+          cp index.html _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

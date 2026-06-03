@@ -102,6 +102,7 @@ input[readonly]{opacity:.6;cursor:default;}
 
 /* ── PICK BUTTONS ── */
 .pick-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.pick-btns-3{grid-template-columns:1fr 1fr 1fr;}
 .pick-btn{padding:12px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;line-height:1.3;}
 .pick-btn:hover{border-color:var(--gold-border);color:var(--gold);}
 .pick-btn.selected{border-color:var(--gold);background:var(--gold-dim);color:var(--gold);font-weight:600;}
@@ -197,6 +198,39 @@ input[readonly]{opacity:.6;cursor:default;}
 @media(min-width:600px){
   .main{padding:20px 16px;}
 }
+
+/* ── DAY NAVIGATOR ── */
+.day-nav{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;}
+.day-nav-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:var(--rs);padding:7px 16px;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;}
+.day-nav-btn:hover:not(:disabled){border-color:var(--gold-border);color:var(--gold);}
+.day-nav-btn:disabled{opacity:.3;cursor:default;}
+.day-nav-label{text-align:center;}
+.day-nav-date{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;color:var(--text);}
+.day-nav-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+
+/* ── INLINE MATCH CARDS ── */
+.match-group-header{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.2px;color:var(--text3);padding:4px 0;margin:14px 0 8px;border-bottom:1px solid var(--border);}
+.match-inline{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px 16px;margin-bottom:10px;}
+.match-inline-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.match-inline-time{font-size:12px;color:var(--text3);}
+.match-inline-stake{font-size:12px;color:var(--gold);font-weight:600;}
+.match-inline-teams{display:grid;grid-template-columns:1fr 36px 1fr;align-items:center;gap:6px;margin-bottom:12px;}
+.mit-team{text-align:center;}
+.mit-flag{font-size:24px;display:block;margin-bottom:3px;}
+.mit-name{font-size:14px;font-weight:600;color:var(--text);line-height:1.2;}
+.mit-vs{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);text-align:center;}
+.match-inline-venue{font-size:11px;color:var(--text3);text-align:center;margin-bottom:12px;}
+.match-inline-pick{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.match-result-badge{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-radius:var(--rs);border:1px solid var(--border);}
+.match-result-winner{font-size:13px;font-weight:600;color:var(--green);}
+.match-result-mypick{font-size:12px;color:var(--text3);}
+
+/* ── STAGE ACCORDION ── */
+.stage-accordion{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;}
+.stage-acc-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent;user-select:none;}
+.stage-acc-header:hover{background:var(--surface2);}
+.stage-acc-body{display:none;padding:14px 16px;border-top:1px solid var(--border);background:var(--surface2);}
+.stage-acc-chv{color:var(--text3);font-size:12px;transition:transform .25s;display:inline-block;}
 </style>
 </head>
 <body>
@@ -257,19 +291,15 @@ input[readonly]{opacity:.6;cursor:default;}
 
   <!-- MATCHES TAB -->
   <div id="page-matches" class="page active">
-    <div class="card">
-      <div class="card-title">⚽ Select Match</div>
-      <select id="match-select" onchange="onMatchChange()"></select>
-      <div id="match-display" style="margin-top:14px"></div>
+    <div class="day-nav">
+      <button class="day-nav-btn" id="day-prev" onclick="goDayNav(-1)">← Prev</button>
+      <div class="day-nav-label">
+        <div class="day-nav-date" id="day-nav-date">Loading…</div>
+        <div class="day-nav-sub" id="day-nav-sub"></div>
+      </div>
+      <button class="day-nav-btn" id="day-next" onclick="goDayNav(1)">Next →</button>
     </div>
-    <div class="card" id="pick-card" style="display:none">
-      <div class="card-title">🎯 Your Pick</div>
-      <div id="pick-area"></div>
-    </div>
-    <div class="card" id="result-card" style="display:none">
-      <div class="card-title">🏆 Result</div>
-      <div id="result-area"></div>
-    </div>
+    <div id="day-matches-body"></div>
   </div>
 
   <!-- MY PICKS TAB -->
@@ -292,8 +322,9 @@ input[readonly]{opacity:.6;cursor:default;}
       <button class="btn btn-sm" onclick="loadAll()" style="border-color:var(--border2);color:var(--text2)">↻ Refresh</button>
     </div>
     <div class="summary-grid" id="summary-grid"></div>
+    <div id="stage-accordion" style="margin-bottom:2px"></div>
     <div class="card" id="pairwise-body"></div>
-    <div class="card" id="match-ledger" style="margin-top:12px"></div>
+    <div id="match-ledger" style="display:none"></div>
   </div>
 
   <!-- TABLE TAB -->
@@ -313,6 +344,9 @@ input[readonly]{opacity:.6;cursor:default;}
     <!-- Profile -->
     <div class="card" id="profile-card"></div>
 
+    <!-- Zelle (visible to all) -->
+    <div class="card" id="zelle-card" style="display:none"></div>
+
     <!-- Admin: Post Result -->
     <div class="card" id="admin-result-card" style="display:none">
       <div class="card-title">✅ Post Result</div>
@@ -321,6 +355,13 @@ input[readonly]{opacity:.6;cursor:default;}
       <div class="field"><label>Stake ($)</label><input type="number" id="admin-stake" value="10" readonly></div>
       <div class="stake-note" id="admin-stake-note"></div>
       <button class="btn btn-green" style="margin-top:14px" onclick="postResult()">POST RESULT →</button>
+    </div>
+
+    <!-- Admin: Reset test data -->
+    <div class="card" id="admin-reset-card" style="display:none;border-color:rgba(245,101,101,.25)">
+      <div class="card-title" style="color:var(--red)">⚠ Reset Test Data</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Wipes all picks and results. Use after testing, before the real tournament starts. Matches and user accounts are kept.</p>
+      <button class="btn btn-danger" onclick="resetTestData()">CLEAR ALL PICKS & RESULTS →</button>
     </div>
 
     <!-- Admin: Add Match -->
@@ -337,7 +378,7 @@ input[readonly]{opacity:.6;cursor:default;}
       </div>
       <div class="field-row">
         <div class="field"><label>Date</label><input type="text" id="nm-date" placeholder="2026-06-11"></div>
-        <div class="field"><label>Time</label><input type="text" id="nm-time" placeholder="8:00 PM ET"></div>
+        <div class="field"><label>Time</label><input type="text" id="nm-time" placeholder="8:00 PM CST"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Venue</label><input type="text" id="nm-venue" placeholder="Rose Bowl"></div>
@@ -385,7 +426,7 @@ input[readonly]{opacity:.6;cursor:default;}
 const GOOGLE_CLIENT_ID  = '';  // Google Cloud Console → OAuth 2.0 Client ID
 const SUPABASE_URL      = '';  // Supabase project URL
 const SUPABASE_ANON_KEY = '';  // Supabase anon/public key
-const ADMIN_EMAILS      = ['sthapaprabesh2020@gmail.com'];
+const ADMIN_EMAILS      = ['adhikariabhinav07@gmail.com'];
 const STAKE_BY_STAGE    = {
   'Group':10, 'R32':15, 'R16':20, 'QF':30, 'SF':50, '3rd':30, 'Final':100
 };
@@ -395,7 +436,7 @@ const AVATAR_BG=['rgba(245,200,66,.15)','rgba(62,207,142,.12)','rgba(245,101,101
 // ══════════════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════════════
-let supabase;
+let db;
 let currentUser = null;   // {id, email, name, avatar_url}
 let isAdmin     = false;
 let allMatches  = [];
@@ -403,6 +444,7 @@ let allPicks    = [];
 let allResults  = [];
 let allUsers    = [];
 let allowlist   = [];
+let allPayments = [];
 let activePicksTab = null; // user id whose picks tab is shown
 let selectedMatchId = null;
 let pendingPickTeam = null;
@@ -411,7 +453,7 @@ let pendingPickTeam = null;
 //  BOOT
 // ══════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // Try to restore session from localStorage
   const saved = localStorage.getItem('fifa26_user');
@@ -482,7 +524,7 @@ async function bootApp() {
   showOverlay('ov-loading');
 
   // Check allowlist
-  const { data: al } = await supabase.from('allowlist').select('email');
+  const { data: al } = await db.from('allowlist').select('email');
   allowlist = al || [];
   const allowed = allowlist.some(r => r.email === currentUser.email) || isAdmin;
   if (!allowed) {
@@ -492,7 +534,7 @@ async function bootApp() {
   }
 
   // Upsert user record
-  await supabase.from('users').upsert({
+  await db.from('users').upsert({
     id: currentUser.id,
     email: currentUser.email,
     name: currentUser.name,
@@ -512,8 +554,7 @@ async function bootApp() {
 
   renderUserAvatar();
   renderAdminCards();
-  buildMatchSelect();
-  autoSelectMatch();
+  initMatchDays();
   activePicksTab = currentUser.id;
 }
 
@@ -531,17 +572,20 @@ async function loadAll() {
   setSyncStatus('syncing', 'Syncing…');
   try {
     const [m, p, r, u, al] = await Promise.all([
-      supabase.from('matches').select('*').order('match_number'),
-      supabase.from('picks').select('*'),
-      supabase.from('results').select('*'),
-      supabase.from('users').select('id,email,name,avatar_url'),
-      supabase.from('allowlist').select('*')
+      db.from('matches').select('*').order('match_number'),
+      db.from('picks').select('*'),
+      db.from('results').select('*'),
+      db.from('users').select('*'),
+      db.from('allowlist').select('*')
     ]);
     allMatches  = m.data || [];
     allPicks    = p.data || [];
     allResults  = r.data || [];
     allUsers    = u.data || [];
     allowlist   = al.data || [];
+    // payments table may not exist yet — fail gracefully
+    const pay   = await db.from('payments').select('*');
+    allPayments = pay.data || [];
     setSyncStatus('ok', 'Synced ✓');
   } catch(e) {
     setSyncStatus('err', 'Error');
@@ -559,7 +603,7 @@ function showPage(id, btn) {
   const nb = btn || document.getElementById('nav-' + id);
   if (nb) nb.classList.add('active');
 
-  if (id === 'matches')  { buildMatchSelect(); autoSelectMatch(); }
+  if (id === 'matches')  { initMatchDays(); }
   if (id === 'picks')    { activePicksTab = currentUser.id; renderPicksTab(); }
   if (id === 'ledger')   renderLedger();
   if (id === 'table')    renderTable();
@@ -641,12 +685,10 @@ function onMatchChange() {
     <div class="match-stage-badge stage-${m.stage}">${stageLabel}${m.group_name?' · Group '+m.group_name:''}</div>
     <div class="match-teams">
       <div class="match-team">
-        <span class="match-team-flag">${flagEmoji(m.team1)}</span>
         <div class="match-team-name">${m.team1}</div>
       </div>
       <div class="match-vs">VS</div>
       <div class="match-team">
-        <span class="match-team-flag">${flagEmoji(m.team2)}</span>
         <div class="match-team-name">${m.team2}</div>
       </div>
     </div>
@@ -681,13 +723,15 @@ function renderPickArea(m, myPick) {
   const area = document.getElementById('pick-area');
   const hasPick = myPick && myPick.team_pick;
   const p = hasPick ? myPick.team_pick : null;
+  const isGroup = m.stage === 'Group';
 
   area.innerHTML = `
-    <div class="pick-btns">
-      <button class="pick-btn${p===m.team1?' selected':''}" onclick="selectPick('${m.team1}',${m.id})">${flagEmoji(m.team1)} ${m.team1}</button>
-      <button class="pick-btn${p===m.team2?' selected':''}" onclick="selectPick('${m.team2}',${m.id})">${flagEmoji(m.team2)} ${m.team2}</button>
+    <div class="pick-btns${isGroup?' pick-btns-3':''}">
+      <button class="pick-btn${p===m.team1?' selected':''}" onclick="selectPick('${m.team1}',${m.id})">${m.team1}</button>
+      ${isGroup?`<button class="pick-btn${p==='draw'?' selected':''}" onclick="selectPick('draw',${m.id})">🤝 Draw</button>`:''}
+      <button class="pick-btn${p===m.team2?' selected':''}" onclick="selectPick('${m.team2}',${m.id})">${m.team2}</button>
     </div>
-    ${hasPick?`<div class="note" style="margin-top:10px">✓ Your pick: <strong>${p}</strong>. Tap to change before the match.</div>`:''}`;
+    ${hasPick?`<div class="note" style="margin-top:10px">✓ Your pick: <strong>${p==='draw'?'Draw':p}</strong>. Tap to change before the match.</div>`:''}`;
 }
 
 async function selectPick(team, matchId) {
@@ -698,7 +742,7 @@ async function selectPick(team, matchId) {
   const fakeMyPick = { user_id: currentUser.id, match_id: matchId, team_pick: team };
   renderPickArea(m, fakeMyPick);
   setSyncStatus('syncing', 'Saving…');
-  const { error } = await supabase.from('picks').upsert({
+  const { error } = await db.from('picks').upsert({
     user_id: currentUser.id,
     match_id: matchId,
     team_pick: team
@@ -717,11 +761,16 @@ function renderResultArea(m, result) {
   const payouts = computeMatchPayouts(m.id, result.winner, stake);
   const usersWithPick = allUsers.filter(u => allPicks.some(p => p.user_id === u.id && p.match_id === m.id));
 
+  const isVoided = payouts && payouts.every(p => p.voided);
+
   let rows = '';
   if (result.winner === 'NR') {
     rows = usersWithPick.map((u, i) => playerResultRow(u, i, '—', 'No result · Rain 🌧', 0, 'result-neutral', 'zero-c')).join('');
+  } else if (isVoided) {
+    rows = `<div class="note" style="color:var(--text2)">🔄 Bet voided — all players picked the same outcome. No money moves.</div>`;
   } else if (!payouts) {
-    rows = `<div class="note">Result posted: <strong>${result.winner}</strong> won. Picks not yet visible (need all picks).</div>`;
+    const outcomeLabel = result.winner === 'draw' ? 'Match ended in a Draw' : `<strong>${result.winner}</strong> won`;
+    rows = `<div class="note">Result posted: ${outcomeLabel}. Picks not yet visible (need all picks).</div>`;
   } else {
     rows = payouts.map((po, i) => {
       const u = allUsers.find(u => u.id === po.userId);
@@ -730,15 +779,22 @@ function renderResultArea(m, result) {
       const cls = po.amt > 0 ? 'result-win' : po.amt < 0 ? 'result-lose' : 'result-neutral';
       const ac  = po.amt > 0 ? 'win-c' : po.amt < 0 ? 'lose-c' : 'zero-c';
       const sign = po.amt > 0 ? '+' : po.amt < 0 ? '−' : '±';
-      const detail = result.winner === 'NR' ? 'No result' : `${po.pick} · ${won?'Won':'Lost'}`;
-      return playerResultRow(u, i, po.pick||'—', detail, po.amt, cls, ac, sign);
+      const pickLabel = po.pick === 'draw' ? 'Draw' : (po.pick || '—');
+      const detail = `${pickLabel} · ${won ? 'Won' : 'Lost'}`;
+      return playerResultRow(u, i, pickLabel, detail, po.amt, cls, ac, sign);
     }).join('');
   }
+
+  const winnerTag = result.winner === 'NR'
+    ? '<span class="rain-tag">🌧 No Result</span>'
+    : result.winner === 'draw'
+      ? '<span class="winner-tag" style="color:var(--cyan)">🤝 Draw</span>'
+      : `<span class="winner-tag">🏆 ${result.winner}</span>`;
 
   area.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:13px;font-weight:600;color:var(--green)">✓ Result posted</span>
-      ${result.winner==='NR'?'<span class="rain-tag">🌧 No Result</span>':`<span class="winner-tag">🏆 ${result.winner}</span>`}
+      ${winnerTag}
     </div>
     ${rows}
     ${isAdmin ? `<button class="btn btn-sm btn-danger" style="margin-top:10px" onclick="deleteResult(${m.id})">Remove Result</button>` : ''}`;
@@ -804,16 +860,22 @@ function renderPicksTab() {
       if (!canSee && hasPick) { chipClass = 'chip-hidden'; chipText = '🔒 Hidden'; }
       else if (hasPick && result) {
         chipClass = pick.team_pick === result.winner ? 'chip-won' : 'chip-lost';
-        chipText  = `${flagEmoji(pick.team_pick)} ${pick.team_pick}`;
+        const pickLabel = pick.team_pick === 'draw' ? '🤝 Draw' : pick.team_pick;
+        chipText = pickLabel;
       } else if (hasPick) {
-        chipClass = 'chip-made'; chipText = `${flagEmoji(pick.team_pick)} ${pick.team_pick}`;
+        const pickLabel = pick.team_pick === 'draw' ? '🤝 Draw' : pick.team_pick;
+        chipClass = 'chip-made'; chipText = pickLabel;
       }
 
       let payout = '', payoutClass = '';
       if (result && hasPick && canSee) {
         const payouts = computeMatchPayouts(m.id, result.winner, stake);
-        const po = payouts && payouts.find(x => x.userId === activePicksTab);
-        if (po) {
+        const isVoid  = payouts && payouts.every(p => p.voided);
+        const po      = payouts && payouts.find(x => x.userId === activePicksTab);
+        if (isVoid) {
+          payout = 'VOID'; payoutClass = 'zero';
+          chipClass = 'chip-pending';
+        } else if (po) {
           const sign = po.amt > 0 ? '+' : po.amt < 0 ? '−' : '±';
           payoutClass = po.amt > 0 ? 'positive' : po.amt < 0 ? 'negative' : 'zero';
           payout = `${sign}$${Math.abs(po.amt).toFixed(2)}`;
@@ -822,7 +884,7 @@ function renderPicksTab() {
 
       html += `<div class="pick-row" onclick="jumpToMatch(${m.id})" style="cursor:pointer">
         <div class="pick-match">
-          <div class="pick-match-teams">${flagEmoji(m.team1)} ${m.team1} vs ${flagEmoji(m.team2)} ${m.team2}</div>
+          <div class="pick-match-teams">${m.team1} vs ${m.team2}</div>
           <div class="pick-match-meta">#${m.match_number} · ${m.match_date||'TBD'}${result?' · 🏆 '+(result.winner==='NR'?'NR':result.winner):''}</div>
         </div>
         <span class="pick-chip ${chipClass}">${chipText}</span>
@@ -853,46 +915,87 @@ function jumpToMatch(matchId) {
 function computeMatchPayouts(matchId, winner, stake) {
   const matchPicks = allPicks.filter(p => p.match_id === matchId && p.team_pick);
   if (!matchPicks.length) return null;
-  if (winner === 'NR') return matchPicks.map(p => ({ userId: p.user_id, pick: p.team_pick, amt: 0 }));
+
+  // No result — everyone breaks even
+  if (winner === 'NR') return matchPicks.map(p => ({ userId: p.user_id, pick: p.team_pick, amt: 0, voided: false }));
 
   const winners = matchPicks.filter(p => p.team_pick === winner);
   const losers  = matchPicks.filter(p => p.team_pick !== winner);
-  if (!winners.length || !losers.length) return matchPicks.map(p => ({ userId: p.user_id, pick: p.team_pick, amt: 0 }));
 
-  const eachWins = (losers.length * stake) / winners.length;
+  // Void — all players picked the same outcome, no money moves
+  if (!losers.length || !winners.length) {
+    return matchPicks.map(p => ({ userId: p.user_id, pick: p.team_pick, amt: 0, voided: true }));
+  }
+
+  // Fixed-pot model:
+  //   Pot        = stake (stage amount, e.g. $10 Group / $15 R32 / etc.)
+  //   Each winner gets  = stake / winners_count   (max = full stake when 1 winner)
+  //   Each loser pays   = stake / losers_count    (max = full stake when 1 loser)
+  const winAmt  = stake / winners.length;
+  const loseAmt = stake / losers.length;
+
   return matchPicks.map(p => ({
     userId: p.user_id,
     pick:   p.team_pick,
-    amt:    p.team_pick === winner ? +eachWins : -stake
+    amt:    p.team_pick === winner ? +winAmt : -loseAmt,
+    voided: false,
   }));
 }
 
 // ══════════════════════════════════════════════════════════════
 //  LEDGER
 // ══════════════════════════════════════════════════════════════
-function renderLedger() {
-  const participants = allUsers.filter(u => allowlist.some(a => a.email === u.email) || ADMIN_EMAILS.includes(u.email));
-  const totals = {};
-  const flow   = {};
-  participants.forEach(u => { totals[u.id] = 0; flow[u.id] = {}; participants.forEach(v => { flow[u.id][v.id] = 0; }); });
+function getParticipants() {
+  return allUsers.filter(u => allowlist.some(a => a.email === u.email) || ADMIN_EMAILS.includes(u.email));
+}
 
-  allResults.forEach(r => {
-    const payouts = computeMatchPayouts(r.match_id, r.winner, r.stake || 10);
+function computeStageFlow(stage) {
+  const participants = getParticipants();
+  const sMatches = allMatches.filter(m => m.stage === stage);
+  const sResults = allResults.filter(r => sMatches.some(m => m.id === r.match_id));
+  const totals = {}, flow = {};
+  participants.forEach(u => { totals[u.id] = 0; flow[u.id] = {}; participants.forEach(v => { flow[u.id][v.id] = 0; }); });
+  sResults.forEach(r => {
+    const stake = r.stake || STAKE_BY_STAGE[stage] || 10;
+    const payouts = computeMatchPayouts(r.match_id, r.winner, stake);
     if (!payouts) return;
-    payouts.forEach(po => {
-      if (totals[po.userId] !== undefined) totals[po.userId] += po.amt;
-    });
+    payouts.forEach(po => { if (totals[po.userId] !== undefined) totals[po.userId] += po.amt; });
     const losers  = payouts.filter(p => p.amt < 0);
     const winners = payouts.filter(p => p.amt > 0);
-    losers.forEach(l => {
-      winners.forEach(w => {
-        const share = Math.abs(l.amt) / winners.length;
-        if (flow[l.userId] && flow[l.userId][w.userId] !== undefined) flow[l.userId][w.userId] += share;
-      });
-    });
+    losers.forEach(l => winners.forEach(w => {
+      const share = Math.abs(l.amt) / winners.length;
+      if (flow[l.userId]?.[w.userId] !== undefined) flow[l.userId][w.userId] += share;
+    }));
+  });
+  return { totals, flow, matchCount: sMatches.length, resultCount: sResults.length };
+}
+
+function buildStageDebts(flow, participants) {
+  const debts = [];
+  for (let i = 0; i < participants.length; i++) {
+    for (let j = i+1; j < participants.length; j++) {
+      const a = participants[i], b = participants[j];
+      const net = (flow[a.id]?.[b.id] || 0) - (flow[b.id]?.[a.id] || 0);
+      if (Math.abs(net) > 0.005)
+        debts.push({ payer: net > 0 ? a : b, payee: net > 0 ? b : a, amount: Math.abs(net) });
+    }
+  }
+  return debts;
+}
+
+function renderLedger() {
+  const participants = getParticipants();
+
+  // ── Overall summary cards ──
+  const totals = {};
+  participants.forEach(u => { totals[u.id] = 0; });
+  allResults.forEach(r => {
+    const stake = r.stake || STAKE_BY_STAGE[allMatches.find(m => m.id === r.match_id)?.stage] || 10;
+    const payouts = computeMatchPayouts(r.match_id, r.winner, stake);
+    if (!payouts) return;
+    payouts.forEach(po => { if (totals[po.userId] !== undefined) totals[po.userId] += po.amt; });
   });
 
-  // Summary cards
   document.getElementById('summary-grid').innerHTML = participants.map((u, i) => {
     const v = totals[u.id] || 0;
     const sign = v > 0 ? '+' : v < 0 ? '' : '±';
@@ -906,12 +1009,145 @@ function renderLedger() {
     </div>`;
   }).join('');
 
-  // Pairwise
+  // ── Stage accordion ──
+  const stages = ['Group','R32','R16','QF','SF','3rd','Final'];
+  const stageLabels = {Group:'Group Stage',R32:'Round of 32',R16:'Round of 16',QF:'Quarter-finals',SF:'Semi-finals','3rd':'3rd Place',Final:'Final'};
+  let accHtml = '';
+
+  stages.forEach(stage => {
+    const sMatches = allMatches.filter(m => m.stage === stage);
+    if (!sMatches.length) return;
+
+    const { totals: st, flow, matchCount, resultCount } = computeStageFlow(stage);
+    const debts   = buildStageDebts(flow, participants);
+    const movedAmt = Object.values(st).filter(v => v > 0).reduce((a, b) => a + b, 0);
+
+    const statusBadge = resultCount === 0
+      ? `<span style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:2px 8px">Upcoming</span>`
+      : resultCount >= matchCount
+        ? `<span style="font-size:10px;font-weight:600;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:20px;padding:2px 8px">✓ Complete</span>`
+        : `<span style="font-size:10px;font-weight:600;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:20px;padding:2px 8px">${resultCount}/${matchCount}</span>`;
+
+    const potStr = movedAmt > 0
+      ? `<span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">$${movedAmt.toFixed(0)}</span>`
+      : '';
+
+    // Player balance chips
+    let bodyHtml = '';
+    const activeP = participants.filter(u => Math.abs(st[u.id] || 0) > 0.005);
+    if (activeP.length) {
+      const chips = activeP.map(u => {
+        const v = st[u.id];
+        const sign = v > 0 ? '+' : '−';
+        const cls  = v > 0 ? 'positive' : 'negative';
+        const i    = participants.indexOf(u);
+        const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+        const bg    = AVATAR_BG[i % AVATAR_BG.length];
+        const isMe  = u.id === currentUser.id;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs)">
+          ${u.avatar_url
+            ? `<img src="${u.avatar_url}" style="width:22px;height:22px;border-radius:50%;border:1.5px solid ${color}">`
+            : `<div style="width:22px;height:22px;border-radius:50%;background:${bg};color:${color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">${u.name.charAt(0)}</div>`}
+          <div>
+            <div style="font-size:11px;font-weight:600;color:${isMe?color:'var(--text)'}">${u.name.split(' ')[0]}${isMe?' ★':''}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700" class="${cls}">${sign}$${Math.abs(v).toFixed(2)}</div>
+          </div>
+        </div>`;
+      }).join('');
+      bodyHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${chips}</div>`;
+    }
+
+    // Settlement rows
+    if (debts.length) {
+      bodyHtml += `<div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Settlement</div>`;
+      debts.forEach(d => {
+        const confirmed  = allPayments.some(p => p.payer_id === d.payer.id && p.payee_id === d.payee.id && p.stage === stage);
+        const canConfirm = isAdmin || currentUser.id === d.payee.id;
+        const iAmPayer   = currentUser.id === d.payer.id;
+        const zelleId    = d.payee.zelle_id;
+
+        let actionEl;
+        if (confirmed) {
+          actionEl = canConfirm
+            ? `<button onclick="togglePayment('${d.payer.id}','${d.payee.id}','${stage}')" style="font-size:11px;font-weight:600;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0">✓ Confirmed</button>`
+            : `<span style="font-size:11px;font-weight:600;color:var(--green)">✓ Paid</span>`;
+        } else if (canConfirm) {
+          actionEl = `<button onclick="togglePayment('${d.payer.id}','${d.payee.id}','${stage}')" style="font-size:11px;font-weight:600;color:var(--text2);background:var(--surface3);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0">Confirm Received</button>`;
+        } else if (iAmPayer && zelleId) {
+          actionEl = `<div style="text-align:right;flex-shrink:0"><div style="font-size:10px;color:var(--text3)">Zelle to</div><div style="font-size:12px;font-weight:500;color:var(--blue);font-family:'DM Mono',monospace">${zelleId}</div></div>`;
+        } else {
+          actionEl = `<span style="font-size:11px;color:var(--text3);flex-shrink:0">Pending</span>`;
+        }
+
+        const payerMe = d.payer.id === currentUser.id, payeeMe = d.payee.id === currentUser.id;
+        const pFrom = `<span style="font-weight:${payerMe?700:500};color:${payerMe?'var(--gold)':'var(--text)'}">${d.payer.name.split(' ')[0]}${payerMe?' (you)':''}</span>`;
+        const pTo   = `<span style="font-weight:${payeeMe?700:500};color:${payeeMe?'var(--gold)':'var(--text)'}">${d.payee.name.split(' ')[0]}${payeeMe?' (you)':''}</span>`;
+
+        bodyHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap">
+          <div style="font-size:13px;color:var(--text2)">${pFrom} owes ${pTo}&nbsp;&nbsp;<span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">$${d.amount.toFixed(2)}</span></div>
+          ${actionEl}
+        </div>`;
+      });
+    } else if (resultCount > 0) {
+      bodyHtml += `<div style="font-size:12px;color:var(--text3);padding:4px 0 8px">All even for this stage.</div>`;
+    } else {
+      bodyHtml += `<div style="font-size:12px;color:var(--text3);padding:4px 0 8px">No results posted yet.</div>`;
+    }
+
+    // Collapsible match list
+    const matchRows = sMatches.map(m => {
+      const r = allResults.find(x => x.match_id === m.id);
+      const winLabel = !r ? '—' : r.winner === 'NR' ? '🌧' : r.winner === 'draw' ? '🤝' : r.winner;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);gap:8px;font-size:12px">
+        <span style="color:var(--text2)"><span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">#${m.match_number}</span>&nbsp;${m.team1} vs ${m.team2}</span>
+        <span style="font-weight:${r?600:400};color:${r?'var(--green)':'var(--text3)'};white-space:nowrap">${winLabel}</span>
+      </div>`;
+    }).join('');
+
+    bodyHtml += `<div style="margin-top:10px">
+      <button onclick="toggleMatchList('ml-${stage}',this)" style="font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 0">▾ ${matchCount} matches</button>
+      <div id="ml-${stage}" style="display:none;margin-top:6px">${matchRows}</div>
+    </div>`;
+
+    accHtml += `<div class="stage-accordion">
+      <div class="stage-acc-header" onclick="toggleStageAcc('sa-${stage}','chv-${stage}')">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px">${stageLabels[stage]}</span>
+          ${statusBadge}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${potStr}
+          <span id="chv-${stage}" class="stage-acc-chv">▾</span>
+        </div>
+      </div>
+      <div class="stage-acc-body" id="sa-${stage}">${bodyHtml}</div>
+    </div>`;
+  });
+
+  document.getElementById('stage-accordion').innerHTML = accHtml;
+
+  // ── Overall pairwise balances ──
+  const allFlow = {};
+  participants.forEach(u => { allFlow[u.id] = {}; participants.forEach(v => { allFlow[u.id][v.id] = 0; }); });
+  allResults.forEach(r => {
+    const stake = r.stake || STAKE_BY_STAGE[allMatches.find(m => m.id === r.match_id)?.stage] || 10;
+    const payouts = computeMatchPayouts(r.match_id, r.winner, stake);
+    if (!payouts) return;
+    const losers  = payouts.filter(p => p.amt < 0);
+    const winners = payouts.filter(p => p.amt > 0);
+    losers.forEach(l => {
+      winners.forEach(w => {
+        const share = Math.abs(l.amt) / winners.length;
+        if (allFlow[l.userId]?.[w.userId] !== undefined) allFlow[l.userId][w.userId] += share;
+      });
+    });
+  });
+
   const pairs = [];
   for (let i = 0; i < participants.length; i++) {
     for (let j = i+1; j < participants.length; j++) {
       const a = participants[i], b = participants[j];
-      const net = (flow[a.id]?.[b.id] || 0) - (flow[b.id]?.[a.id] || 0);
+      const net = (allFlow[a.id]?.[b.id] || 0) - (allFlow[b.id]?.[a.id] || 0);
       pairs.push({ a, b, net });
     }
   }
@@ -929,50 +1165,110 @@ function renderLedger() {
     </tr>`;
   }).join('');
   document.getElementById('pairwise-body').innerHTML = pairHtml
-    ? `<div class="card-title">⚖ Balances</div><table style="width:100%;border-collapse:collapse"><tbody>${pairHtml}</tbody></table>`
+    ? `<div class="card-title">⚖ Overall Balances</div><table style="width:100%;border-collapse:collapse"><tbody>${pairHtml}</tbody></table>`
     : '<div class="empty-state" style="padding:20px"><p>No results yet.</p></div>';
+}
 
-  // Match-by-match ledger
-  const resultsSorted = [...allResults].sort((a,b) => a.match_id - b.match_id);
-  if (!resultsSorted.length) {
-    document.getElementById('match-ledger').innerHTML = '<div class="card-title">📊 Match Results</div><div class="empty-state" style="padding:20px"><div class="empty-icon">📋</div><p>No results posted yet.</p></div>';
-    return;
+function toggleStageAcc(bodyId, chvId) {
+  const body = document.getElementById(bodyId);
+  const chv  = document.getElementById(chvId);
+  if (!body) return;
+  const open = body.style.display === 'none' || !body.style.display;
+  body.style.display = open ? 'block' : 'none';
+  if (chv) chv.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function toggleMatchList(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.style.display === 'none' || !el.style.display;
+  el.style.display = open ? 'block' : 'none';
+  if (btn) btn.textContent = (open ? '▴' : '▾') + btn.textContent.slice(1);
+}
+
+async function togglePayment(payerId, payeeId, stage) {
+  if (!isAdmin && currentUser.id !== payeeId) {
+    toast('Only the receiver can confirm payment'); return;
   }
+  const existing = allPayments.find(p => p.payer_id === payerId && p.payee_id === payeeId && p.stage === stage);
+  setSyncStatus('syncing', 'Saving…');
+  if (existing) {
+    const { error } = await db.from('payments').delete().eq('id', existing.id);
+    if (error) { toast('⚠ Failed'); setSyncStatus('err','Failed'); return; }
+    allPayments = allPayments.filter(p => p.id !== existing.id);
+    toast('↩ Confirmation removed');
+  } else {
+    const { flow } = computeStageFlow(stage);
+    const pts   = getParticipants();
+    const debt  = buildStageDebts(flow, pts).find(d => d.payer.id === payerId && d.payee.id === payeeId);
+    const { data, error } = await db.from('payments').upsert({
+      payer_id: payerId, payee_id: payeeId, stage,
+      amount: debt ? debt.amount : 0,
+      confirmed: true,
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: currentUser.id
+    }, { onConflict: 'payer_id,payee_id,stage' }).select();
+    if (error) { toast('⚠ Failed — run payments migration in Supabase'); setSyncStatus('err','Failed'); return; }
+    if (data) allPayments.push(...data);
+    toast('✓ Payment confirmed');
+  }
+  setSyncStatus('ok', 'Saved ✓');
+  renderLedger();
+}
 
-  const hdr = participants.map(u => `<th style="padding:6px 8px;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text3);text-align:center">${u.name.split(' ')[0]}</th>`).join('');
-  const rows = resultsSorted.map(r => {
-    const m = allMatches.find(x => x.id === r.match_id);
-    if (!m) return '';
-    const payouts = computeMatchPayouts(r.match_id, r.winner, r.stake || 10);
-    const cells = participants.map(u => {
-      if (!payouts) return `<td style="padding:6px 8px;text-align:center;font-size:12px;color:var(--text3)">—</td>`;
-      const po = payouts.find(x => x.userId === u.id);
-      if (!po) return `<td style="padding:6px 8px;text-align:center;font-size:12px;color:var(--text3)">—</td>`;
-      const sign = po.amt > 0 ? '+' : po.amt < 0 ? '−' : '±';
-      const cls  = po.amt > 0 ? 'positive' : po.amt < 0 ? 'negative' : 'zero';
-      return `<td style="padding:6px 8px;text-align:center"><span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600" class="${cls}">${sign}$${Math.abs(po.amt).toFixed(2)}</span></td>`;
-    }).join('');
-    const winTag = r.winner === 'NR' ? '<span class="rain-tag">🌧</span>' : `<span class="winner-tag">🏆 ${r.winner}</span>`;
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 8px;font-size:12px"><strong>#${m.match_number}</strong><br><span style="color:var(--text3);font-size:10px">${m.team1} vs ${m.team2}</span></td>
-      <td style="padding:6px 8px;text-align:center">${winTag}</td>
-      ${cells}
-      ${isAdmin ? `<td style="padding:6px 4px;text-align:right"><button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px" onclick="deleteResult(${r.match_id})">✕</button></td>` : ''}
-    </tr>`;
+// ── ZELLE ──────────────────────────────────────────────────────
+function renderZelleCard() {
+  const el = document.getElementById('zelle-card');
+  if (!el) return;
+  const participants = getParticipants();
+  if (!participants.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  const rows = participants.map((u, i) => {
+    const color   = AVATAR_COLORS[i % AVATAR_COLORS.length];
+    const bg      = AVATAR_BG[i % AVATAR_BG.length];
+    const isMe    = u.id === currentUser.id;
+    const zelleId = u.zelle_id || '';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+        ${u.avatar_url
+          ? `<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;border:2px solid ${color};flex-shrink:0">`
+          : `<div style="width:32px;height:32px;border-radius:50%;background:${bg};color:${color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${u.name.charAt(0)}</div>`}
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:${isMe?700:600};color:${isMe?color:'var(--text)'}">${u.name}${isMe?' (you)':''}</div>
+          <div style="font-size:12px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${zelleId?`color:var(--text2);font-family:'DM Mono',monospace`:'color:var(--text3)'}">${zelleId||'Not set'}</div>
+        </div>
+      </div>
+      ${isMe ? `<button class="btn btn-sm btn-blue" onclick="editZelle()" style="flex-shrink:0">Edit</button>` : ''}
+    </div>`;
   }).join('');
 
-  document.getElementById('match-ledger').innerHTML = `
-    <div class="card-title">📊 Match Results <span style="font-size:12px;font-weight:400;color:var(--text3);font-family:'DM Sans',sans-serif">${resultsSorted.length} logged</span></div>
-    <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;min-width:320px">
-      <thead><tr style="border-bottom:1px solid var(--border2)">
-        <th style="padding:6px 8px;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text3);text-align:left">Match</th>
-        <th style="padding:6px 8px;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text3);text-align:center">Result</th>
-        ${hdr}
-        ${isAdmin ? '<th></th>' : ''}
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
+  el.innerHTML = `<div class="card-title">💳 Zelle</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Add your Zelle phone or email so others can send you winnings directly.</p>
+    ${rows}`;
+}
+
+function editZelle() {
+  const me  = allUsers.find(u => u.id === currentUser.id);
+  const cur = me?.zelle_id || '';
+  const val = prompt('Your Zelle phone number or email:', cur);
+  if (val === null) return;
+  saveZelleId(val.trim());
+}
+
+async function saveZelleId(zelleId) {
+  setSyncStatus('syncing', 'Saving…');
+  const { error } = await db.from('users').update({ zelle_id: zelleId || null }).eq('id', currentUser.id);
+  if (error) {
+    toast('⚠ Run ALTER TABLE migration first — see WHATS_NEXT.md');
+    setSyncStatus('err', 'Failed');
+    return;
+  }
+  const idx = allUsers.findIndex(u => u.id === currentUser.id);
+  if (idx >= 0) allUsers[idx].zelle_id = zelleId || null;
+  setSyncStatus('ok', 'Saved ✓');
+  toast('✓ Zelle ID saved');
+  renderZelleCard();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1000,7 +1296,16 @@ function renderTable() {
     const { team1: t1, team2: t2 } = m;
     if (!teams[t1] || !teams[t2]) return;
     teams[t1].p++; teams[t2].p++;
-    if (r.winner === 'NR' || r.winner === 'Draw') {
+
+    // Goals (auto-populated by poll_results.py)
+    const hg = r.home_goals ?? null;
+    const ag = r.away_goals ?? null;
+    if (hg !== null && ag !== null) {
+      teams[t1].gf += hg; teams[t1].ga += ag;
+      teams[t2].gf += ag; teams[t2].ga += hg;
+    }
+
+    if (r.winner === 'NR' || r.winner === 'draw') {
       teams[t1].d++; teams[t1].pts += 1;
       teams[t2].d++; teams[t2].pts += 1;
     } else {
@@ -1010,27 +1315,37 @@ function renderTable() {
     }
   });
 
+  const hasGoals = Object.values(teams).some(t => t.gf > 0 || t.ga > 0);
+
   const html = groups.map(g => {
     const groupTeams = Object.entries(teams)
       .filter(([, v]) => v.group === g)
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => b.pts - a.pts || b.w - a.w || a.name.localeCompare(b.name));
+      .map(([name, v]) => ({ name, ...v, gd: v.gf - v.ga }))
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.name.localeCompare(b.name));
+
+    const gdCell = (t) => {
+      if (!hasGoals) return `<td style="padding:7px 8px;color:var(--text3)">—</td>`;
+      const gd = t.gd;
+      const color = gd > 0 ? 'var(--green)' : gd < 0 ? 'var(--red)' : 'var(--text3)';
+      return `<td style="padding:7px 8px;color:${color};font-weight:600">${gd > 0 ? '+' : ''}${gd}</td>`;
+    };
 
     const rows = groupTeams.map((t, i) => `
       <tr class="${i < 2 ? 'qualify-row' : ''}">
         <td style="padding:7px 8px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${i+1}</td>
-        <td style="padding:7px 8px;font-size:13px;font-weight:500">${flagEmoji(t.name)} ${t.name}</td>
+        <td style="padding:7px 8px;font-size:13px;font-weight:500">${t.name}</td>
         <td style="padding:7px 8px">${t.p}</td>
         <td style="padding:7px 8px">${t.w}</td>
         <td style="padding:7px 8px">${t.d}</td>
         <td style="padding:7px 8px">${t.l}</td>
+        ${gdCell(t)}
         <td class="pts-cell" style="padding:7px 8px">${t.pts}</td>
       </tr>`).join('');
 
     return `<div class="group-block">
       <div class="group-title">Group ${g}</div>
       <table class="standings-table">
-        <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>
+        <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -1057,6 +1372,7 @@ function renderSettings() {
       </div>
     </div>`;
 
+  renderZelleCard();
   renderAdminCards();
 
   if (isAdmin) {
@@ -1066,9 +1382,32 @@ function renderSettings() {
 }
 
 function renderAdminCards() {
-  document.getElementById('admin-result-card').style.display  = isAdmin ? 'block' : 'none';
-  document.getElementById('admin-match-card').style.display   = isAdmin ? 'block' : 'none';
+  document.getElementById('admin-result-card').style.display    = isAdmin ? 'block' : 'none';
+  document.getElementById('admin-match-card').style.display     = isAdmin ? 'block' : 'none';
   document.getElementById('admin-allowlist-card').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('admin-reset-card').style.display     = isAdmin ? 'block' : 'none';
+}
+
+async function resetTestData() {
+  if (!confirm('This will permanently delete ALL picks and results for every player.\n\nType "RESET" to confirm.')) return;
+  const word = prompt('Type RESET to confirm:');
+  if (word !== 'RESET') { toast('Cancelled'); return; }
+
+  setSyncStatus('syncing', 'Resetting…');
+  const [r1, r2] = await Promise.all([
+    db.from('picks').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    db.from('results').delete().neq('match_id', 0),
+  ]);
+
+  if (r1.error || r2.error) {
+    toast('⚠ Reset failed — check console');
+    setSyncStatus('err', 'Failed');
+    return;
+  }
+
+  await loadAll();
+  toast('✓ All picks and results cleared');
+  setSyncStatus('ok', 'Reset done');
 }
 
 function buildAdminMatchSelect() {
@@ -1097,6 +1436,7 @@ function onAdminMatchChange() {
   wSel.innerHTML = `<option value="">— select —</option>
     <option value="${m.team1}">${m.team1}</option>
     <option value="${m.team2}">${m.team2}</option>
+    ${m.stage === 'Group' ? '<option value="draw">🤝 Draw</option>' : ''}
     <option value="NR">🌧 No Result (Rain/Abandoned)</option>`;
 
   const existing = allResults.find(r => r.match_id === id);
@@ -1114,7 +1454,7 @@ async function postResult() {
   if (existing && !confirm('Result already posted. Overwrite?')) return;
 
   setSyncStatus('syncing', 'Saving…');
-  const { error } = await supabase.from('results').upsert({
+  const { error } = await db.from('results').upsert({
     match_id: matchId, winner, stake, posted_at: new Date().toISOString()
   }, { onConflict: 'match_id' });
 
@@ -1128,7 +1468,7 @@ async function postResult() {
 
 async function deleteResult(matchId) {
   if (!confirm(`Remove result for match #${allMatches.find(m=>m.id===matchId)?.match_number}?`)) return;
-  await supabase.from('results').delete().eq('match_id', matchId);
+  await db.from('results').delete().eq('match_id', matchId);
   await loadAll();
   renderLedger();
   toast('✓ Result removed');
@@ -1148,7 +1488,7 @@ async function addMatch() {
   if (!team1 || !team2) { toast('⚠ Enter both team names'); return; }
 
   setSyncStatus('syncing', 'Saving…');
-  const { error } = await supabase.from('matches').insert({
+  const { error } = await db.from('matches').insert({
     match_number: num || null, stage, group_name: group,
     team1, team2, match_date: date, match_time: time, venue, city
   });
@@ -1168,7 +1508,7 @@ async function addToAllowlist() {
   const email = document.getElementById('al-email').value.trim().toLowerCase();
   const name  = document.getElementById('al-name').value.trim();
   if (!email) { toast('⚠ Enter an email'); return; }
-  const { error } = await supabase.from('allowlist').upsert({ email, name: name || null }, { onConflict: 'email' });
+  const { error } = await db.from('allowlist').upsert({ email, name: name || null }, { onConflict: 'email' });
   if (error) { toast('⚠ Failed'); return; }
   document.getElementById('al-email').value = '';
   document.getElementById('al-name').value  = '';
@@ -1179,7 +1519,7 @@ async function addToAllowlist() {
 
 async function removeFromAllowlist(email) {
   if (!confirm('Remove ' + email + ' from allowlist?')) return;
-  await supabase.from('allowlist').delete().eq('email', email);
+  await db.from('allowlist').delete().eq('email', email);
   await loadAll();
   renderAllowlist();
   toast('✓ Removed');
@@ -1267,6 +1607,164 @@ function toast(msg) {
   el.classList.add('show');
   if (_tt) clearTimeout(_tt);
   _tt = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DAY NAVIGATOR
+// ══════════════════════════════════════════════════════════════
+let matchDays    = [];
+let currentDayIdx = 0;
+
+function initMatchDays() {
+  const days = [...new Set(allMatches.map(m => m.match_date).filter(Boolean))].sort();
+  matchDays = days;
+  const today = new Date().toISOString().slice(0, 10);
+  let idx = days.findIndex(d => d >= today);
+  if (idx < 0) idx = days.length - 1;
+  currentDayIdx = Math.max(0, idx);
+  renderMatchDay(currentDayIdx);
+}
+
+function goDayNav(delta) {
+  currentDayIdx = Math.max(0, Math.min(matchDays.length - 1, currentDayIdx + delta));
+  renderMatchDay(currentDayIdx);
+}
+
+function renderMatchDay(idx) {
+  const day = matchDays[idx];
+  if (!day) { document.getElementById('day-matches-body').innerHTML = '<p style="color:var(--text3);text-align:center;padding:24px">No matches found.</p>'; return; }
+
+  const dateObj   = new Date(day + 'T12:00:00');
+  const dateLabel = dateObj.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  const dayMatches = allMatches.filter(m => m.match_date === day).sort((a, b) => a.match_number - b.match_number);
+
+  document.getElementById('day-nav-date').textContent = dateLabel;
+  document.getElementById('day-nav-sub').textContent  = `${dayMatches.length} match${dayMatches.length !== 1 ? 'es' : ''}`;
+  document.getElementById('day-prev').disabled = idx === 0;
+  document.getElementById('day-next').disabled = idx === matchDays.length - 1;
+
+  // Group by group letter (Group stage) or stage label (knockouts)
+  const stageLabels = {Group:'Group Stage',R32:'Round of 32',R16:'Round of 16',QF:'Quarter-finals',SF:'Semi-finals','3rd':'3rd Place',Final:'Final'};
+  const grouped = {};
+  const order   = [];
+  dayMatches.forEach(m => {
+    const key = m.group_name ? `Group ${m.group_name}` : (stageLabels[m.stage] || m.stage);
+    if (!grouped[key]) { grouped[key] = []; order.push(key); }
+    grouped[key].push(m);
+  });
+
+  let html = '';
+  order.forEach(key => {
+    html += `<div class="match-group-header">${key}</div>`;
+    grouped[key].forEach(m => { html += buildMatchCard(m); });
+  });
+  document.getElementById('day-matches-body').innerHTML = html;
+}
+
+function buildMatchCard(m) {
+  const result  = allResults.find(r => r.match_id === m.id);
+  const myPick  = allPicks.find(p => p.user_id === currentUser.id && p.match_id === m.id);
+  const stake   = STAKE_BY_STAGE[m.stage] || 10;
+  const p       = myPick ? myPick.team_pick : null;
+  const isGroup = m.stage === 'Group';
+
+  let bottomHtml = '';
+  if (result) {
+    const payouts  = computeMatchPayouts(m.id, result.winner, stake);
+    const isVoided = payouts && payouts.every(x => x.voided);
+    const winnerLabel = isVoided ? '🔄 Void'
+      : result.winner === 'NR'   ? '🌧 No Result'
+      : result.winner === 'draw' ? '🤝 Draw'
+      : `🏆 ${result.winner}`;
+    let myLine = 'No pick made';
+    if (p) {
+      const po = payouts && payouts.find(x => x.userId === currentUser.id);
+      const pickLabel = p === 'draw' ? 'Draw' : p;
+      if (isVoided) {
+        myLine = `You picked ${pickLabel} · Void (no money moves)`;
+      } else if (po) {
+        const sign = po.amt > 0 ? '+' : po.amt < 0 ? '−' : '±';
+        const cls  = po.amt > 0 ? 'win-c' : po.amt < 0 ? 'lose-c' : 'zero-c';
+        myLine = `You picked ${pickLabel} &nbsp;<span class="${cls}" style="font-family:'DM Mono',monospace;font-weight:600">${sign}$${Math.abs(po.amt).toFixed(2)}</span>`;
+      } else {
+        myLine = `You picked ${pickLabel}`;
+      }
+    }
+    bottomHtml = `<div class="match-result-badge">
+      <span class="match-result-winner">${winnerLabel}</span>
+      <span class="match-result-mypick">${myLine}</span>
+    </div>`;
+  } else if (isMatchLocked(m) && !isAdmin) {
+    const pickLabel = p ? (p === 'draw' ? 'Draw' : p) : null;
+    bottomHtml = `<div class="match-result-badge" style="border-color:rgba(255,255,255,.08)">
+      <span class="match-result-winner" style="color:var(--text3)">🔒 Picks Locked</span>
+      <span class="match-result-mypick">${pickLabel ? `Your pick: ${pickLabel}` : 'No pick made'}</span>
+    </div>`;
+  } else {
+    const t1 = m.team1.replace(/'/g, "\\'");
+    const t2 = m.team2.replace(/'/g, "\\'");
+    const drawBtn = isGroup ? `<button class="pick-btn${p==='draw'?' selected':''}" onclick="inlinePick('draw',${m.id})">🤝 Draw</button>` : '';
+    bottomHtml = `
+      <div class="pick-btns${isGroup?' pick-btns-3':''}">
+        <button class="pick-btn${p===m.team1?' selected':''}" onclick="inlinePick('${t1}',${m.id})">${m.team1}</button>
+        ${drawBtn}
+        <button class="pick-btn${p===m.team2?' selected':''}" onclick="inlinePick('${t2}',${m.id})">${m.team2}</button>
+      </div>
+      ${p ? `<div class="note" style="margin-top:8px;font-size:12px">✓ Your pick: <strong>${p === 'draw' ? 'Draw' : p}</strong>. Tap to change before the match.</div>` : ''}`;
+  }
+
+  return `<div class="match-inline" id="match-card-${m.id}">
+    <div class="match-inline-header">
+      <div class="match-inline-time">${m.match_time || 'Time TBD'}</div>
+    </div>
+    <div class="match-inline-teams">
+      <div class="mit-team"><div class="mit-name">${m.team1}</div></div>
+      <div class="mit-vs">vs</div>
+      <div class="mit-team"><div class="mit-name">${m.team2}</div></div>
+    </div>
+    ${m.city ? `<div class="match-inline-venue">${m.city}</div>` : ''}
+    ${bottomHtml}
+  </div>`;
+}
+
+function isMatchLocked(m) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!m.match_date) return false;
+  if (m.match_date < today) return true;
+  // Same day — lock once kickoff time has passed (parse CST)
+  if (m.match_date === today && m.match_time) {
+    const timeStr = m.match_time.replace(/\s*(CST|ET)\s*$/i, '').trim();
+    const parts   = timeStr.split(/[: ]/);
+    let h = parseInt(parts[0]), min = parseInt(parts[1]);
+    const ampm = parts[2] || '';
+    if (ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+    // CST = UTC-6 (CDT = UTC-5; FIFA 2026 is summer so UTC-5, but use -6 to be safe)
+    const nowUTC  = new Date();
+    const nowH    = (nowUTC.getUTCHours() - 6 + 24) % 24;
+    const nowM    = nowUTC.getUTCMinutes();
+    return nowH > h || (nowH === h && nowM >= min);
+  }
+  return false;
+}
+
+async function inlinePick(team, matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  if (!isAdmin && m && isMatchLocked(m)) {
+    toast('⚠ Picks are locked for this match');
+    return;
+  }
+  setSyncStatus('syncing', 'Saving…');
+  const { error } = await db.from('picks').upsert({
+    user_id: currentUser.id, match_id: matchId, team_pick: team
+  }, { onConflict: 'user_id,match_id' });
+  if (error) { toast('⚠ Save failed — picks may be locked'); setSyncStatus('err', 'Failed'); return; }
+  const idx = allPicks.findIndex(p => p.user_id === currentUser.id && p.match_id === matchId);
+  if (idx >= 0) allPicks[idx].team_pick = team;
+  else allPicks.push({ user_id: currentUser.id, match_id: matchId, team_pick: team });
+  setSyncStatus('ok', 'Saved ✓');
+  toast('✓ Pick saved — ' + (team === 'draw' ? 'Draw' : team));
+  renderMatchDay(currentDayIdx);
 }
 </script>
 </body>

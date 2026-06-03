@@ -42,10 +42,32 @@ create table public.picks (
 
 create table public.results (
   match_id int primary key references public.matches(id) on delete cascade,
-  winner text not null,          -- team name or 'NR' (no result)
+  winner text not null,          -- team name, 'draw', or 'NR' (no result)
   stake decimal not null default 10,
+  home_goals int,
+  away_goals int,
   posted_at timestamptz default now()
 );
+
+-- ── PAYMENTS (run after initial deploy) ──────────────────────
+-- Tracks Zelle payment confirmations per stage between players.
+alter table public.users add column if not exists zelle_id text;
+
+create table if not exists public.payments (
+  id uuid primary key default gen_random_uuid(),
+  payer_id text not null references public.users(id) on delete cascade,
+  payee_id text not null references public.users(id) on delete cascade,
+  stage text not null,
+  amount decimal(10,2) not null default 0,
+  confirmed boolean not null default true,
+  confirmed_at timestamptz,
+  confirmed_by text,
+  created_at timestamptz default now(),
+  unique(payer_id, payee_id, stage)
+);
+
+alter table public.payments enable row level security;
+create policy "open" on public.payments for all using (true) with check (true);
 
 -- ── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Auth is handled client-side via Google JWT; these policies allow
