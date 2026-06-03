@@ -1,6 +1,7 @@
 [build]
   command   = "bash inject.sh"
   publish   = "."
+  ignore    = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html inject.sh netlify.toml"
 
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "GOOGLE_CLIENT_ID,SUPABASE_URL,SUPABASE_KEY,SUPABASE_ANON_KEY,EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,EMAILJS_PUBLIC_KEY"
