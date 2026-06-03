@@ -225,6 +225,25 @@ input[readonly]{opacity:.6;cursor:default;}
 .match-result-winner{font-size:13px;font-weight:600;color:var(--green);}
 .match-result-mypick{font-size:12px;color:var(--text3);}
 
+/* ── HOME PAGE ── */
+.home-hero{background:linear-gradient(135deg,#0a0e18 0%,#131929 60%,#1a1f30 100%);border:1px solid var(--gold-border);border-radius:var(--r);padding:20px 18px;margin-bottom:12px;position:relative;overflow:hidden;}
+.home-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(245,200,66,.08) 0%,transparent 70%);pointer-events:none;}
+.home-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--gold);line-height:1;}
+.home-sub{font-size:12px;color:var(--text3);letter-spacing:.6px;margin-top:3px;}
+.online-pill{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2);}
+.online-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 6px var(--green);}
+.online-names{font-size:11px;color:var(--text3);margin-left:2px;}
+.pick-status-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;}
+.pick-bar-wrap{background:var(--surface3);border-radius:4px;height:6px;margin:8px 0 4px;overflow:hidden;}
+.pick-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),#e6a800);transition:width .4s ease;}
+.rules-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;}
+.rules-stage-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;}
+.rules-stage-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:var(--rs);padding:8px 12px;border:1px solid var(--border);}
+.rules-stage-name{font-size:12px;color:var(--text2);}
+.rules-stage-amt{font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--gold);}
+.players-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+.player-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:7px 12px;}
+
 /* ── STAGE ACCORDION ── */
 .stage-accordion{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;}
 .stage-acc-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent;user-select:none;}
@@ -289,8 +308,13 @@ input[readonly]{opacity:.6;cursor:default;}
 <!-- ── MAIN CONTENT ── -->
 <div class="main" id="main-content" style="display:none">
 
+  <!-- HOME TAB -->
+  <div id="page-home" class="page active">
+    <div id="home-body"></div>
+  </div>
+
   <!-- MATCHES TAB -->
-  <div id="page-matches" class="page active">
+  <div id="page-matches" class="page">
     <div class="day-nav">
       <button class="day-nav-btn" id="day-prev" onclick="goDayNav(-1)">← Prev</button>
       <div class="day-nav-label">
@@ -431,10 +455,10 @@ input[readonly]{opacity:.6;cursor:default;}
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
-  <button class="nav-item active" id="nav-matches" onclick="showPage('matches',this)"><span class="nav-icon">⚽</span>Matches</button>
+  <button class="nav-item active" id="nav-home" onclick="showPage('home',this)"><span class="nav-icon">🏠</span>Home</button>
+  <button class="nav-item" id="nav-matches" onclick="showPage('matches',this)"><span class="nav-icon">⚽</span>Matches</button>
   <button class="nav-item" id="nav-picks" onclick="showPage('picks',this)"><span class="nav-icon">📋</span>Picks</button>
   <button class="nav-item" id="nav-ledger" onclick="showPage('ledger',this)"><span class="nav-icon">💸</span>Ledger</button>
-  <button class="nav-item" id="nav-table" onclick="showPage('table',this)"><span class="nav-icon">🏆</span>Table</button>
   <button class="nav-item" id="nav-settings" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span>More</button>
 </nav>
 
@@ -475,6 +499,8 @@ let allPayments = [];
 let activePicksTab = null; // user id whose picks tab is shown
 let selectedMatchId = null;
 let pendingPickTeam = null;
+let presenceChannel = null;
+let onlineUsers     = [];
 
 // ══════════════════════════════════════════════════════════════
 //  BOOT
@@ -582,6 +608,8 @@ async function bootApp() {
   renderUserAvatar();
   renderAdminCards();
   initMatchDays();
+  initPresence();
+  renderHome();
   activePicksTab = currentUser.id;
 }
 
@@ -630,11 +658,146 @@ function showPage(id, btn) {
   const nb = btn || document.getElementById('nav-' + id);
   if (nb) nb.classList.add('active');
 
+  if (id === 'home')     renderHome();
   if (id === 'matches')  { initMatchDays(); }
   if (id === 'picks')    { activePicksTab = currentUser.id; renderPicksTab(); }
   if (id === 'ledger')   renderLedger();
   if (id === 'table')    renderTable();
   if (id === 'settings') renderSettings();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  HOME PAGE
+// ══════════════════════════════════════════════════════════════
+function initPresence() {
+  if (presenceChannel) return;
+  presenceChannel = db.channel('app-presence', { config: { presence: { key: currentUser.id } } });
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      onlineUsers = Object.values(presenceChannel.presenceState()).flat();
+      const el = document.getElementById('online-pill');
+      if (el) updateOnlinePill(el);
+    })
+    .subscribe(async status => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({ user_id: currentUser.id, name: currentUser.name });
+      }
+    });
+}
+
+function updateOnlinePill(el) {
+  const count = onlineUsers.length;
+  const names = onlineUsers
+    .filter(u => u.user_id !== currentUser.id)
+    .map(u => u.name.split(' ')[0])
+    .join(', ');
+  el.innerHTML = `<span class="online-dot"></span><span style="font-weight:600;color:var(--green)">${count} online</span>${names ? `<span class="online-names">· ${names}</span>` : ''}`;
+}
+
+function renderHome() {
+  const el = document.getElementById('home-body');
+  if (!el) return;
+
+  const participants  = getParticipants();
+  const availMatches  = allMatches.filter(m => !allResults.some(r => r.match_id === m.id) && !isMatchLocked(m));
+  const myPicks       = availMatches.filter(m => allPicks.some(p => p.user_id === currentUser.id && p.match_id === m.id && p.team_pick));
+  const allDone       = availMatches.length > 0 && myPicks.length === availMatches.length;
+  const noPending     = availMatches.length === 0;
+  const pct           = availMatches.length ? Math.round(myPicks.length / availMatches.length * 100) : 100;
+  const me            = allUsers.find(u => u.id === currentUser.id);
+  const meIdx         = participants.findIndex(u => u.id === currentUser.id);
+  const meColor       = AVATAR_COLORS[meIdx >= 0 ? meIdx % AVATAR_COLORS.length : 0];
+
+  // ── Pick status card ──
+  let pickCard;
+  if (noPending) {
+    pickCard = `<div style="text-align:center;padding:8px 0">
+      <div style="font-size:28px;margin-bottom:6px">✅</div>
+      <div style="font-size:15px;font-weight:600;color:var(--green)">No open matches right now</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Check back on match days.</div>
+    </div>`;
+  } else if (allDone) {
+    pickCard = `<div style="text-align:center;padding:8px 0">
+      <div style="font-size:28px;margin-bottom:6px">🎉</div>
+      <div style="font-size:15px;font-weight:600;color:var(--green)">All caught up!</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">All ${availMatches.length} available matches picked.</div>
+    </div>`;
+  } else {
+    pickCard = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Pick status</div>
+        <div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--gold)">${myPicks.length}/${availMatches.length}</div>
+      </div>
+      <div class="pick-bar-wrap"><div class="pick-bar" style="width:${pct}%"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${availMatches.length - myPicks.length} match${availMatches.length - myPicks.length !== 1 ? 'es' : ''} still need a pick</div>
+      <button class="btn" onclick="showPage('matches',document.getElementById('nav-matches'))">PICK NOW →</button>`;
+  }
+
+  // ── Players online list ──
+  const playerChips = participants.map((u, i) => {
+    const color   = AVATAR_COLORS[i % AVATAR_COLORS.length];
+    const bg      = AVATAR_BG[i % AVATAR_BG.length];
+    const isOnline = onlineUsers.some(o => o.user_id === u.id);
+    const isMe     = u.id === currentUser.id;
+    return `<div class="player-chip">
+      <div style="position:relative">
+        ${u.avatar_url
+          ? `<img src="${u.avatar_url}" style="width:28px;height:28px;border-radius:50%;border:2px solid ${color}">`
+          : `<div style="width:28px;height:28px;border-radius:50%;background:${bg};color:${color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${u.name.charAt(0)}</div>`}
+        ${isOnline ? `<span style="position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:var(--green);border:1.5px solid var(--surface2)"></span>` : ''}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:${isMe?700:500};color:${isMe?color:'var(--text)'}">${u.name.split(' ')[0]}${isMe?' (you)':''}</div>
+        <div style="font-size:10px;color:${isOnline?'var(--green)':'var(--text3)'};">${isOnline?'online':'offline'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="home-hero">
+      <div class="home-title">FIFA 2026 Bets</div>
+      <div class="home-sub">World Cup 2026 · Jun 11 – Jul 19</div>
+      <div class="online-pill" id="online-pill">
+        <span class="online-dot"></span>
+        <span style="color:var(--text3)">Connecting…</span>
+      </div>
+    </div>
+
+    <div class="pick-status-card">
+      <div class="card-title" style="margin-bottom:10px">📋 Your Picks</div>
+      ${pickCard}
+    </div>
+
+    <div class="rules-card">
+      <div class="card-title" style="margin-bottom:10px">💰 How It Works</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">Pick the winner before kickoff. Group stage: you can also pick a draw. Whoever picks wrong pays into a pot — winners split it equally.</p>
+      <div style="background:var(--surface2);border-radius:var(--rs);padding:12px;border:1px solid var(--border);margin-bottom:12px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Example · 4 players · Group stage ($10)</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.8">
+          3 pick Brazil · 1 picks Argentina<br>
+          <span style="color:var(--green)">Argentina wins →</span> 1 winner collects <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--gold)">+$30</span><br>
+          <span style="color:var(--green)">Brazil wins →</span> 3 winners each get <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--gold)">+$3.33</span>
+        </div>
+      </div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Stakes per stage</div>
+      <div class="rules-stage-grid">
+        ${[['Group','$10'],['R32','$15'],['R16','$20'],['QF','$30'],['SF','$50'],['3rd Place','$30'],['Final','$100']].map(([s,a])=>`
+          <div class="rules-stage-row">
+            <span class="rules-stage-name">${s}</span>
+            <span class="rules-stage-amt">${a}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="rules-card">
+      <div class="card-title" style="margin-bottom:4px">👥 Players</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Green dot = currently in the app.</p>
+      <div class="players-row">${playerChips}</div>
+    </div>`;
+
+  // Update online pill once presence syncs
+  const pill = document.getElementById('online-pill');
+  if (pill && onlineUsers.length) updateOnlinePill(pill);
 }
 
 // ══════════════════════════════════════════════════════════════
