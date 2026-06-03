@@ -1247,13 +1247,19 @@ function renderLedger() {
     }
 
     // Settlement rows
+    const stageComplete = resultCount >= matchCount && matchCount > 0;
     const settledCount = debts.filter(d => {
       const p = allPayments.find(x => x.payer_id === d.payer.id && x.payee_id === d.payee.id && x.stage === stage);
       return p?.sent_by_payer && p?.confirmed;
     }).length;
     const allSettled = debts.length > 0 && settledCount === debts.length;
 
-    if (debts.length) {
+    if (debts.length && !stageComplete) {
+      const remaining = matchCount - resultCount;
+      bodyHtml += `<div style="font-size:12px;color:var(--text3);padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);margin-top:4px">
+        🔒 Settlement unlocks when all ${matchCount} results are logged &nbsp;·&nbsp; ${remaining} remaining
+      </div>`;
+    } else if (debts.length) {
       const settleBadge = allSettled
         ? `<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:20px;padding:2px 8px">✓ All Settled</span>`
         : settledCount > 0
@@ -1310,7 +1316,7 @@ function renderLedger() {
         </div>`;
       });
     } else if (resultCount > 0) {
-      bodyHtml += `<div style="font-size:12px;color:var(--text3);padding:4px 0 8px">All even for this stage.</div>`;
+      bodyHtml += `<div style="font-size:12px;color:var(--text3);padding:4px 0 8px">All even for this stage — no payments needed.</div>`;
     } else {
       bodyHtml += `<div style="font-size:12px;color:var(--text3);padding:4px 0 8px">No results posted yet.</div>`;
     }
@@ -1620,6 +1626,15 @@ function renderAdminCards() {
   document.getElementById('admin-override-card').style.display  = isAdmin ? 'block' : 'none';
   document.getElementById('admin-match-card').style.display     = isAdmin ? 'block' : 'none';
   document.getElementById('admin-allowlist-card').style.display = isAdmin ? 'block' : 'none';
+}
+
+function quickEditResult(matchId) {
+  showPage('settings', document.getElementById('nav-settings'));
+  setTimeout(() => {
+    const sel = document.getElementById('admin-match-sel');
+    if (sel) { sel.value = matchId; onAdminMatchChange(); }
+    document.getElementById('admin-result-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 120);
 }
 
 function buildOverrideSelects() {
@@ -2043,6 +2058,7 @@ function buildMatchCard(m) {
     bottomHtml = `<div class="match-result-badge">
       <span class="match-result-winner">${winnerLabel}</span>
       <span class="match-result-mypick">${myLine}</span>
+      ${isAdmin ? `<button onclick="quickEditResult(${m.id})" style="margin-left:auto;flex-shrink:0;background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);font-size:11px;padding:3px 8px;cursor:pointer">✏️ Edit</button>` : ''}
     </div>`;
   } else if (isMatchLocked(m) && !isAdmin) {
     const pickLabel = p ? (p === 'draw' ? 'Draw' : p) : null;
