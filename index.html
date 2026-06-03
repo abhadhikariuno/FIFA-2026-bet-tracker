@@ -1247,34 +1247,66 @@ function renderLedger() {
     }
 
     // Settlement rows
+    const settledCount = debts.filter(d => {
+      const p = allPayments.find(x => x.payer_id === d.payer.id && x.payee_id === d.payee.id && x.stage === stage);
+      return p?.sent_by_payer && p?.confirmed;
+    }).length;
+    const allSettled = debts.length > 0 && settledCount === debts.length;
+
     if (debts.length) {
-      bodyHtml += `<div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Settlement</div>`;
+      const settleBadge = allSettled
+        ? `<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:20px;padding:2px 8px">✓ All Settled</span>`
+        : settledCount > 0
+          ? `<span style="font-size:10px;font-weight:600;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:20px;padding:2px 8px">${settledCount}/${debts.length} settled</span>`
+          : `<span style="font-size:10px;font-weight:600;color:var(--red);background:var(--red-dim);border:1px solid rgba(245,101,101,.2);border-radius:20px;padding:2px 8px">Unsettled</span>`;
+
+      bodyHtml += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3)">Settlement</span>
+        ${settleBadge}
+      </div>`;
+
       debts.forEach(d => {
-        const confirmed  = allPayments.some(p => p.payer_id === d.payer.id && p.payee_id === d.payee.id && p.stage === stage);
-        const canConfirm = isAdmin || currentUser.id === d.payee.id;
+        const payment    = allPayments.find(p => p.payer_id === d.payer.id && p.payee_id === d.payee.id && p.stage === stage);
+        const sentOk     = !!payment?.sent_by_payer;
+        const receivedOk = !!payment?.confirmed;
+        const settled    = sentOk && receivedOk;
         const iAmPayer   = currentUser.id === d.payer.id;
+        const iAmPayee   = currentUser.id === d.payee.id;
+        const canSend    = isAdmin || iAmPayer;
+        const canReceive = isAdmin || iAmPayee;
         const zelleId    = d.payee.zelle_id;
 
-        let actionEl;
-        if (confirmed) {
-          actionEl = canConfirm
-            ? `<button onclick="togglePayment('${d.payer.id}','${d.payee.id}','${stage}')" style="font-size:11px;font-weight:600;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0">✓ Confirmed</button>`
-            : `<span style="font-size:11px;font-weight:600;color:var(--green)">✓ Paid</span>`;
-        } else if (canConfirm) {
-          actionEl = `<button onclick="togglePayment('${d.payer.id}','${d.payee.id}','${stage}')" style="font-size:11px;font-weight:600;color:var(--text2);background:var(--surface3);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0">Confirm Received</button>`;
-        } else if (iAmPayer && zelleId) {
-          actionEl = `<div style="text-align:right;flex-shrink:0"><div style="font-size:10px;color:var(--text3)">Zelle to</div><div style="font-size:12px;font-weight:500;color:var(--blue);font-family:'DM Mono',monospace">${zelleId}</div></div>`;
-        } else {
-          actionEl = `<span style="font-size:11px;color:var(--text3);flex-shrink:0">Pending</span>`;
-        }
-
-        const payerMe = d.payer.id === currentUser.id, payeeMe = d.payee.id === currentUser.id;
+        const payerMe = iAmPayer, payeeMe = iAmPayee;
         const pFrom = `<span style="font-weight:${payerMe?700:500};color:${payerMe?'var(--gold)':'var(--text)'}">${d.payer.name.split(' ')[0]}${payerMe?' (you)':''}</span>`;
         const pTo   = `<span style="font-weight:${payeeMe?700:500};color:${payeeMe?'var(--gold)':'var(--text)'}">${d.payee.name.split(' ')[0]}${payeeMe?' (you)':''}</span>`;
 
-        bodyHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap">
-          <div style="font-size:13px;color:var(--text2)">${pFrom} owes ${pTo}&nbsp;&nbsp;<span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">$${d.amount.toFixed(2)}</span></div>
-          ${actionEl}
+        let actions;
+        if (settled) {
+          actions = `<span style="font-size:11px;font-weight:700;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:6px;padding:5px 12px">✓ Settled</span>`;
+        } else {
+          const btn = (label, active, color, bg, border, fn) =>
+            `<button onclick="${fn}" style="font-size:11px;font-weight:600;color:${active?color:'var(--text3)'};background:${active?bg:'var(--surface3)'};border:1px solid ${active?border:'var(--border2)'};border-radius:6px;padding:5px 9px;cursor:pointer;white-space:nowrap">${label}</button>`;
+
+          const sentBtn = canSend
+            ? btn(sentOk ? '✓ Sent' : '💸 Mark Sent', sentOk, 'var(--blue)', 'var(--blue-dim)', 'rgba(96,165,250,.3)', `togglePayment('${d.payer.id}','${d.payee.id}','${stage}','sent')`)
+            : `<span style="font-size:11px;color:${sentOk?'var(--blue)':'var(--text3)'}">${sentOk?'✓ Sent':'Not sent'}</span>`;
+
+          const recvBtn = canReceive
+            ? btn(receivedOk ? '✓ Received' : 'Mark Received', receivedOk, 'var(--green)', 'var(--green-dim)', 'rgba(62,207,142,.3)', `togglePayment('${d.payer.id}','${d.payee.id}','${stage}','received')`)
+            : `<span style="font-size:11px;color:${receivedOk?'var(--green)':'var(--text3)'}">${receivedOk?'✓ Received':'Not received'}</span>`;
+
+          actions = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${sentBtn}${recvBtn}</div>`;
+        }
+
+        const zelleHint = !settled && !sentOk && iAmPayer && zelleId
+          ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">Zelle: <span style="font-family:'DM Mono',monospace;color:var(--blue)">${zelleId}</span></div>`
+          : '';
+
+        bodyHtml += `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="font-size:13px;color:var(--text2)">${pFrom} owes ${pTo}&nbsp;&nbsp;<span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">$${d.amount.toFixed(2)}</span></div>
+            ${actions}
+          </div>${zelleHint}
         </div>`;
       });
     } else if (resultCount > 0) {
@@ -1298,11 +1330,16 @@ function renderLedger() {
       <div id="ml-${stage}" style="display:none;margin-top:6px">${matchRows}</div>
     </div>`;
 
+    const headerSettleBadge = debts.length === 0 ? '' : allSettled
+      ? `<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,.25);border-radius:20px;padding:2px 8px">✓ Settled</span>`
+      : `<span style="font-size:10px;font-weight:600;color:var(--red);background:var(--red-dim);border:1px solid rgba(245,101,101,.2);border-radius:20px;padding:2px 8px">Unsettled</span>`;
+
     accHtml += `<div class="stage-accordion">
       <div class="stage-acc-header" onclick="toggleStageAcc('sa-${stage}','chv-${stage}')">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px">${stageLabels[stage]}</span>
           ${statusBadge}
+          ${headerSettleBadge}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${potStr}
@@ -1375,32 +1412,37 @@ function toggleMatchList(id, btn) {
   if (btn) btn.textContent = (open ? '▴' : '▾') + btn.textContent.slice(1);
 }
 
-async function togglePayment(payerId, payeeId, stage) {
-  if (!isAdmin && currentUser.id !== payeeId) {
-    toast('Only the receiver can confirm payment'); return;
-  }
+async function togglePayment(payerId, payeeId, stage, type) {
+  if (type === 'sent'     && !isAdmin && currentUser.id !== payerId) { toast('Only the sender can mark as sent'); return; }
+  if (type === 'received' && !isAdmin && currentUser.id !== payeeId) { toast('Only the receiver can mark as received'); return; }
+
   const existing = allPayments.find(p => p.payer_id === payerId && p.payee_id === payeeId && p.stage === stage);
   setSyncStatus('syncing', 'Saving…');
+
   if (existing) {
-    const { error } = await db.from('payments').delete().eq('id', existing.id);
+    const field  = type === 'sent' ? 'sent_by_payer' : 'confirmed';
+    const newVal = !existing[field];
+    const { error } = await db.from('payments').update({ [field]: newVal }).eq('id', existing.id);
     if (error) { toast('⚠ Failed'); setSyncStatus('err','Failed'); return; }
-    allPayments = allPayments.filter(p => p.id !== existing.id);
-    toast('↩ Confirmation removed');
+    existing[field] = newVal;
+    toast(newVal ? (type === 'sent' ? '💸 Marked as sent' : '✓ Marked as received') : '↩ Unmarked');
   } else {
     const { flow } = computeStageFlow(stage);
-    const pts   = getParticipants();
-    const debt  = buildStageDebts(flow, pts).find(d => d.payer.id === payerId && d.payee.id === payeeId);
-    const { data, error } = await db.from('payments').upsert({
+    const debt = buildStageDebts(flow, getParticipants()).find(d => d.payer.id === payerId && d.payee.id === payeeId);
+    const record = {
       payer_id: payerId, payee_id: payeeId, stage,
       amount: debt ? debt.amount : 0,
-      confirmed: true,
-      confirmed_at: new Date().toISOString(),
-      confirmed_by: currentUser.id
-    }, { onConflict: 'payer_id,payee_id,stage' }).select();
+      sent_by_payer:  type === 'sent',
+      confirmed:      type === 'received',
+      confirmed_at:   new Date().toISOString(),
+      confirmed_by:   currentUser.id
+    };
+    const { data, error } = await db.from('payments').upsert(record, { onConflict: 'payer_id,payee_id,stage' }).select();
     if (error) { toast('⚠ Failed — run payments migration in Supabase'); setSyncStatus('err','Failed'); return; }
     if (data) allPayments.push(...data);
-    toast('✓ Payment confirmed');
+    toast(type === 'sent' ? '💸 Marked as sent' : '✓ Marked as received');
   }
+
   setSyncStatus('ok', 'Saved ✓');
   renderLedger();
 }
