@@ -69,6 +69,9 @@ create table if not exists public.payments (
 alter table public.payments enable row level security;
 create policy "open" on public.payments for all using (true) with check (true);
 
+-- ── PAYMENTS v2: run this if payments table already exists ────
+alter table public.payments add column if not exists sent_by_payer boolean not null default false;
+
 -- ── ROW LEVEL SECURITY ───────────────────────────────────────────
 -- Auth is handled client-side via Google JWT; these policies allow
 -- the anon key full access (acceptable for a private friend-group app).
