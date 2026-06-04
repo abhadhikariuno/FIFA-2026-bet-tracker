@@ -4,3 +4,5 @@
 __pycache__/
 *.pyc
 matches_backup.sql
+index.dev.html
+index.html.bak
