@@ -20,4 +20,8 @@ jobs:
         run: pip install requests pytz
 
       - name: Run result poller
+        env:
+          FD_API_KEY:   ${{ secrets.FD_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python scripts/poll_results.py --once
