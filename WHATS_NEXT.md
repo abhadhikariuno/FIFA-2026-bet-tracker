@@ -10,7 +10,7 @@ _Last updated: June 3, 2026 — 8 days to launch_
 - [x] `fd_id` column added to matches (links to football-data.org)
 - [x] `home_goals` / `away_goals` columns added to results (auto-populated by poller)
 - [x] All 104 FIFA 2026 matches seeded via `scripts/seed_matches.py`
-- [x] Admin email set to `sthapaprabesh2020@gmail.com`
+- [x] Admin email configured
 - [x] Matches display grouped by match day with ← Prev / Next → navigation
 - [x] Within each day, matches grouped by group (Group A, Group B, etc.)
 - [x] Plain team names — no flag emojis or abbreviations
@@ -103,8 +103,8 @@ The poller runs automatically via `.github/workflows/` every 5 minutes on match 
 | Item | Value |
 |------|-------|
 | GitHub repo | `github.com/abhadhikariuno/FIFA-2026-bet-tracker` (private) |
-| Supabase project | `jhwhesobabmdvdbekqux.supabase.co` |
-| Admin email | `adhikariabhinav07@gmail.com` |
+| Supabase project | _(see Supabase dashboard)_ |
+| Admin email | _(see ADMIN_EMAILS in index.html)_ |
 | Group stage starts | June 11, 2026 |
 | Total matches | 104 |
 
