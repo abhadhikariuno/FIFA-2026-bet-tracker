@@ -365,6 +365,8 @@ input[readonly]{opacity:.6;cursor:default;}
 
   <!-- SETTINGS / ADMIN TAB -->
   <div id="page-settings" class="page">
+    <!-- Missing picks alert -->
+    <div id="picks-alert-card"></div>
     <!-- Profile -->
     <div class="card" id="profile-card"></div>
 
@@ -1091,42 +1093,51 @@ function setPicksTab(userId) {
 }
 
 function jumpToMatch(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
   showPage('matches', document.getElementById('nav-matches'));
+  if (m && m.match_date) {
+    const idx = matchDays.findIndex(d => d === m.match_date);
+    if (idx >= 0) { currentDayIdx = idx; renderMatchDay(currentDayIdx); }
+  }
   setTimeout(() => {
-    const sel = document.getElementById('match-select');
-    if (sel) { sel.value = matchId; onMatchChange(); }
-  }, 50);
+    const card = document.getElementById('match-card-' + matchId);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 120);
 }
 
 // ══════════════════════════════════════════════════════════════
 //  PAYOUT COMPUTATION
 // ══════════════════════════════════════════════════════════════
 function computeMatchPayouts(matchId, winner, stake) {
+  const participants = getParticipants();
+  if (!participants.length) return null;
+
   const matchPicks = allPicks.filter(p => p.match_id === matchId && p.team_pick);
-  if (!matchPicks.length) return null;
+
+  // All participants are in — missing pick counts as a loss
+  const allEntries = participants.map(u => {
+    const pick = matchPicks.find(p => p.user_id === u.id);
+    return { userId: u.id, pick: pick ? pick.team_pick : null };
+  });
 
   // No result — everyone breaks even
-  if (winner === 'NR') return matchPicks.map(p => ({ userId: p.user_id, pick: p.team_pick, amt: 0, voided: false }));
+  if (winner === 'NR') return allEntries.map(p => ({ userId: p.userId, pick: p.pick, amt: 0, voided: false }));
 
-  const winners = matchPicks.filter(p => p.team_pick === winner);
-  const losers  = matchPicks.filter(p => p.team_pick !== winner);
+  const winners = allEntries.filter(p => p.pick === winner);
+  const losers  = allEntries.filter(p => p.pick !== winner);
 
-  // Void — all players picked the same outcome, no money moves
+  // Void — all players picked the same outcome (or no one picked at all), no money moves
   if (!losers.length || !winners.length) {
-    return matchPicks.map(p => ({ userId: p.user_id, pick: p.team_pick, amt: 0, voided: true }));
+    return allEntries.map(p => ({ userId: p.userId, pick: p.pick, amt: 0, voided: true }));
   }
 
-  // Fixed-pot model:
-  //   Pot        = stake (stage amount, e.g. $10 Group / $15 R32 / etc.)
-  //   Each winner gets  = stake / winners_count   (max = full stake when 1 winner)
-  //   Each loser pays   = stake / losers_count    (max = full stake when 1 loser)
   const winAmt  = stake / winners.length;
   const loseAmt = stake / losers.length;
 
-  return matchPicks.map(p => ({
-    userId: p.user_id,
-    pick:   p.team_pick,
-    amt:    p.team_pick === winner ? +winAmt : -loseAmt,
+  return allEntries.map(p => ({
+    userId: p.userId,
+    pick:   p.pick,
+    amt:    p.pick === winner ? +winAmt : -loseAmt,
     voided: false,
   }));
 }
@@ -1592,9 +1603,74 @@ function renderTable() {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  MISSING PICKS ALERT
+// ══════════════════════════════════════════════════════════════
+function getMatchKickoffMs(m) {
+  if (!m.match_date) return null;
+  let h = 12, min = 0;
+  if (m.match_time) {
+    const timeStr = m.match_time.replace(/\s*(CST|CDT|CT|ET|EDT|MT|PT)\s*$/i, '').trim();
+    const parts   = timeStr.split(/[: ]/);
+    h   = parseInt(parts[0]) || 0;
+    min = parseInt(parts[1]) || 0;
+    const ampm = (parts[2] || '').toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+  }
+  const [yr, mo, dy] = m.match_date.split('-').map(Number);
+  return Date.UTC(yr, mo - 1, dy, h + 6, min); // CST = UTC-6
+}
+
+function getMissingPicksIn48h() {
+  const now    = Date.now();
+  const cutoff = now + 48 * 60 * 60 * 1000;
+  return allMatches.filter(m => {
+    if (allResults.some(r => r.match_id === m.id)) return false;
+    if (isMatchLocked(m)) return false;
+    const ts = getMatchKickoffMs(m);
+    if (!ts || ts > cutoff || ts <= now) return false;
+    return !allPicks.some(p => p.user_id === currentUser.id && p.match_id === m.id && p.team_pick);
+  });
+}
+
+function renderMissingPicksAlert() {
+  const el = document.getElementById('picks-alert-card');
+  if (!el) return;
+  const missing = getMissingPicksIn48h();
+  if (!missing.length) { el.innerHTML = ''; return; }
+
+  const rows = missing.map(m => {
+    const ts    = getMatchKickoffMs(m);
+    const hLeft = ts ? Math.max(1, Math.round((ts - Date.now()) / 3600000)) : null;
+    const urgency = hLeft !== null && hLeft <= 6
+      ? `<span style="color:var(--red);font-weight:700">⏱ ${hLeft}h left</span>`
+      : hLeft !== null
+        ? `<span style="color:var(--gold)">⏱ ${hLeft}h left</span>`
+        : '';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(245,101,101,.15);gap:8px">
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${m.team1} vs ${m.team2}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">#${m.match_number} · ${m.match_date}${m.match_time ? ' · ' + m.match_time : ''} &nbsp;${urgency}</div>
+      </div>
+      <button onclick="jumpToMatch(${m.id})" style="flex-shrink:0;padding:6px 14px;border-radius:8px;border:1px solid rgba(245,101,101,.4);background:rgba(245,101,101,.1);color:var(--red);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">Pick →</button>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card" style="border-color:rgba(245,101,101,.4);background:rgba(245,101,101,.04);margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:20px">⚠️</span>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--red)">Missing Picks</div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5">${missing.length} match${missing.length !== 1 ? 'es' : ''} kicking off within 48 hours — pick before they lock!</p>
+    <div>${rows}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
 //  SETTINGS / ADMIN
 // ══════════════════════════════════════════════════════════════
 function renderSettings() {
+  renderMissingPicksAlert();
   const u = currentUser;
   const i = allUsers.findIndex(x => x.id === u.id);
   const color = AVATAR_COLORS[i >= 0 ? i % AVATAR_COLORS.length : 0];
